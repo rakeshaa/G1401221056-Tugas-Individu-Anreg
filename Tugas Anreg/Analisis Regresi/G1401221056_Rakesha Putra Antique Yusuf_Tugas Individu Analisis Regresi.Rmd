@@ -1,0 +1,101 @@
+---
+title: "Tugas Individu Analisis Regresi"
+author: "Rakesha Putra Antique Yusuf"
+date: "2024-03-05"
+output: distill::distill_article
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggridges)
+library(GGally)
+library(plotly)
+library(dplyr)
+library(lmtest)
+```
+
+# Data
+```{r}
+data <- read_xlsx("C:/Users/RAKESHA/Downloads/Anreg Individu.xlsx")
+```
+## Eksplorasi Data
+```{r}
+plot(x = data$X, y = data$Y)
+```
+Dari scatter plot di atas menunjukan jika Y dan X tidak berhubungan liner 
+
+## Uji Normalitas
+```{r}
+qqnorm(data$Y)
+qqline(data$Y, col = "red")
+```
+Data yang diketahui tidak menyebar normal
+
+## Declare Model Regresi
+```{r}
+model_lm <- lm(formula = Y ~ X, data = data)
+summary(model_lm)
+model_lm
+```
+
+## Uji Autokorelasi
+```{r}
+acf(model_lm$residuals)
+dwtest(model_lm)
+```
+Pada gambar ACF, nilai autokorelasi pada lag 1 adalah 0.5 dan nilai autokorelasi pada lag 2 adalah 0.4. Kedua nilai ini berada di luar batas kepercayaan 95%, yang menunjukkan bahwa autokorelasi pada lag 1 dan 2 signifikan.
+
+Gambar tersebut menunjukkan adanya asumsi Gauss-Markov yang tidak terpenuhi, yaitu asumsi non-autokorelasi. Hal tersebut juga diperkuat dari p-test hasil Uji Durbin-Watson 
+
+## Uji Homoskedastisitas
+```{r}
+plot(model_lm, which = 1)
+```
+Berdasarkan gambar di atas, terlihat bahwa varians residual konstan. Varian residual cenderung meningkat seiring dengan nilai prediksi. Hal ini menunjukkan bahwa homoskedastisitas terjadi.
+
+## Transformasi 
+
+### WLS
+Mencari nilai bobot:
+```{r}
+resid_abs <- abs(model_lm$residuals)
+fitted_val <- model_lm$fitted.values
+fit <- lm(resid_abs ~ fitted_val, data)
+data.weights <- 1 / fit$fitted.values^2
+data.weights
+plot(data.weights)
+```
+
+Hasil model regresi yang terboboti:
+```{r}
+model_weighted <- lm(Y~X, data = data, weights = data.weights)
+plot(model_weighted)
+summary(model_weighted)
+```
+Dari hasil transformasi WLS di atas dapat disimpulkan WLS belum efektif dalam mentransformasi model regresi dapat dibuktikan dari hasil ekplorasi di atas masih belum memenuhi asumsi Gauss-Markov
+
+### Transformasi Akar pada x, y, atau X dan y
+```{r}
+newdata <- data %>%
+  mutate(y = sqrt(Y)) %>%
+  mutate(x = sqrt(X))
+model_sqrt <- lm(y ~ x, data = newdata)
+plot(x = newdata$x, y = newdata$y)
+plot(model_sqrt)
+
+model_sqrtx <- lm(y ~ X, data = newdata)
+plot(x = newdata$X, y = newdata$y)
+plot(model_sqrtx)
+
+model_sqrty <- lm(Y ~ x, data = newdata)
+plot(x = newdata$x, y = newdata$Y)
+plot(model_sqrty)
+
+summary(model_sqrt)
+summary(model_sqrtx)
+summary(model_sqrty)
+```
+Dari hasil transformasi di atas dapat diambil kesimpulan jika transformasi akar membuat persamaan regresi menjadi lebih efektif akan tetapi dari hasil perbandingan x yang diakar, y yang diakar, atau keduanya yang diakar, model regresi yang x dan y-nya diakarkan lebih baik dibanding 2 lainnya. Hal tersebut terbukti dari R-Square dan Adjusted R-squared yang paling tinggi dengan nilai 0.9772 dan 0.9755. Model regresi setelah transformaasi:
+$ y = 8.71245-0.81339 x$
+
